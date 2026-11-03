@@ -56,7 +56,7 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <h1>Your Own AI</h1>
+        <h1>Build Your Own AI</h1>
         <div className="status">
           <span className={`dot ${status?.ollama ? "on" : ""}`} />
           {status ? (
