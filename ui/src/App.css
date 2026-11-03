@@ -197,3 +197,42 @@ button.danger {
   border-radius: 50%;
   margin-right: 5px;
 }
+.bench {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.bench th {
+  text-align: left;
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e1e4e8;
+}
+.bench td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f0f1f3;
+  vertical-align: middle;
+}
+.barcell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 190px;
+}
+.barcell .track {
+  flex: 1;
+  height: 10px;
+  background: #f0f1f3;
+  border-radius: 5px;
+}
+.barcell .bar {
+  height: 10px;
+  border-radius: 5px;
+}
+.barcell span {
+  width: 72px;
+  text-align: right;
+  white-space: nowrap;
+}

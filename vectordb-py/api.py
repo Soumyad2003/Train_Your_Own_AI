@@ -159,3 +159,19 @@ def project_query(body: ProjectIn):
         vec = call_ollama(store.ollama.embed, body.query)
         x, y = proj.project(vec)
         return {"x": x, "y": y}
+
+from benchmark import run_benchmark
+
+bench_lock = threading.Lock()      # separate from `lock`, so a benchmark never blocks your documents
+
+
+class BenchmarkIn(BaseModel):
+    n: Literal[1000, 2000, 5000] = 2000
+    dim: Literal[8, 64, 768] = 64
+    ef: int = Field(50, ge=5, le=500)
+
+
+@app.post("/benchmark")
+def benchmark(body: BenchmarkIn):
+    with bench_lock:
+        return run_benchmark(body.n, body.dim, body.ef)

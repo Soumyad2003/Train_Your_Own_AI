@@ -25,6 +25,7 @@ const post = (path, body) =>
   request(path, { method: "POST", body: JSON.stringify(body) });
 
 export const api = {
+  benchmark: (n, dim, ef) => post("/benchmark", { n, dim, ef }),
   map: () => request("/map"),
   project: (query) => post("/map/project", { query }),
   status: () => request("/status"),

@@ -1,364 +1,234 @@
-# TrainYourOwnAI 🚀
+# Your Own AI
 
-### Build, Understand & Explore Your Own Vector Database and RAG Pipeline
+A small **vector database with a RAG chat app**, written from scratch in Python and React. Add your own documents, search them by meaning, ask questions answered from those documents, and compare three nearest-neighbour search algorithms side by side.
 
-**TrainYourOwnAI** is a locally powered Retrieval-Augmented Generation (RAG) application built around a custom vector database implemented from scratch in Python. It transforms raw documents into semantic embeddings, indexes them using multiple search algorithms, retrieves contextually relevant information, and generates grounded answers using Large Language Models.
+Everything runs locally. The language models are served by [Ollama](https://ollama.com); the chunking, distance metrics, indexes, API and UI are all written in this repository, with no vector-database library involved.
 
-Instead of relying on pre-built vector database frameworks, this project implements the core mechanics of vector storage, similarity search, indexing, and retrieval to explore how modern AI-powered search systems work under the hood.
+This is a Python + React rebuild of the C++ project _Your-OWN-AI_, written as a learning exercise in how systems like Pinecone, Weaviate and Chroma work under the hood.
 
----
-## Demo
-<img width="1886" height="902" alt="image" src="https://github.com/user-attachments/assets/bfa9bdc7-5bbb-4a2b-a677-a25d944e709f" />
-<img width="1907" height="897" alt="image" src="https://github.com/user-attachments/assets/1b02e4db-c949-43e8-9f77-a33ae6d40ba8" />
-<img width="1908" height="901" alt="image" src="https://github.com/user-attachments/assets/4f5b6f55-c90e-4a54-b069-726def698400" />
-<img width="1908" height="897" alt="image" src="https://github.com/user-attachments/assets/27bf96a3-b748-4a48-a616-a51add9ce9bb" />
+![Search](docs/search.png)
+![Map](docs/map.png)
+![Benchmark](docs/benchmark.png)
 
-## ✨ Features
+## Features
 
-### 1. Document Ingestion & Processing
+| Tab           | What it does                                                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Documents** | Paste text or load a `.txt` / `.md` file. Documents are split into chunks, embedded and indexed. Delete any document at any time.                         |
+| **Search**    | Semantic search: finds chunks by meaning, not keywords. Shows each result's cosine distance and whether it would pass the RAG relevance cutoff.           |
+| **Ask AI**    | Retrieval-augmented chat. Answers come only from your documents and list their sources. If nothing relevant is found, it says so without calling the LLM. |
+| **Map**       | 2D PCA scatter plot of all chunk embeddings, coloured by document. After a search, the query appears as a star with its top results highlighted.          |
+| **Benchmark** | Compares brute force (Python and NumPy), KD-Tree and HNSW on synthetic data: build time, query time, distance computations and recall.                    |
 
-- Add documents through a text editor or upload `.txt` and `.md` files.
-- Automatically split documents into manageable chunks.
-- Implement overlapping chunking to preserve contextual continuity between adjacent chunks.
-- Generate dense vector embeddings using **Ollama's `nomic-embed-text`** model.
-- Maintain document-to-chunk relationships for retrieval and deletion.
+The header lets you **switch the active index** (brute force, KD-Tree, HNSW) at runtime. Results stay identical for the exact methods, and HNSW is approximate but close.
 
-### 2. Custom Vector Database
-
-A lightweight vector database implemented from scratch, supporting three indexing strategies:
-
-| Index       | Approach                        | Characteristics                                                                     |
-| ----------- | ------------------------------- | ----------------------------------------------------------------------------------- |
-| Brute Force | Exhaustive similarity search    | Evaluates every stored vector to find the nearest neighbors.                        |
-| KD-Tree     | Space partitioning              | Uses a balanced tree and pruning to reduce unnecessary distance computations.       |
-| HNSW        | Hierarchical graph-based search | Uses layered proximity graphs for efficient approximate nearest-neighbor retrieval. |
-
-Additional capabilities:
-
-- Vector insertion and deletion.
-- Top-K nearest-neighbor retrieval.
-- Cosine and Euclidean distance metrics.
-- Pluggable indexing architecture through an index factory.
-- Runtime index switching without rebuilding document embeddings.
-
-### 3. Semantic Search
-
-Search documents based on meaning rather than exact keyword matches.
-
-- Convert natural-language queries into embeddings.
-- Retrieve the Top-K most similar document chunks.
-- Rank results by vector distance.
-- Display similarity distance and relevant document context.
-
-### 4. Retrieval-Augmented Generation (RAG)
-
-An end-to-end RAG pipeline that connects semantic retrieval with LLM-based generation.
-
-**Pipeline:**
-
-1. Accept a natural-language question.
-2. Generate an embedding for the query.
-3. Retrieve the most relevant document chunks.
-4. Filter retrieved results using a configurable distance threshold.
-5. Construct a context-aware prompt using the retrieved content.
-6. Pass the prompt to the LLM for response generation.
-7. Return the generated answer along with source references.
-
-The generation pipeline is designed to answer using retrieved context and explicitly acknowledge when relevant information is unavailable.
-
-### 5. Interactive Vector Space Visualization
-
-Explore the semantic structure of your document collection through a 2D visualization.
-
-- Apply **Principal Component Analysis (PCA)** to high-dimensional embeddings.
-- Normalize vectors before projection to preserve consistency with cosine-based retrieval.
-- Project document embeddings into a two-dimensional coordinate space.
-- Visualize document chunks as points, grouped by their source documents.
-- Project search queries into the same vector space.
-- Highlight retrieved chunks and visualize their relationship with the query.
-
-This provides an intuitive way to understand how semantic search operates in an embedding space.
-
----
-
-## 🏗️ Architecture
+## How it works
 
 ```mermaid
-flowchart TD
-    A[React Frontend] --> B[FastAPI Backend]
-
-    B --> C[Document Ingestion]
-    C --> D[Text Chunking]
-    D --> E[Ollama Embedding Model]
-    E --> F[Vector Storage]
-
-    F --> G{Index Selection}
-    G --> H[Brute Force]
-    G --> I[KD-Tree]
-    G --> J[HNSW]
-
-    K[User Query] --> L[Query Embedding]
-    L --> M[Nearest Neighbor Search]
-    H --> M
-    I --> M
-    J --> M
-
-    M --> N[Top-K Retrieval]
-    N --> O[Context Construction]
-    O --> P[Ollama LLM]
-    P --> Q[Grounded Answer + Sources]
-
-    F --> R[PCA Projection]
-    R --> S[2D Vector Visualization]
-
-    Q --> A
-    S --> A
+flowchart LR
+    subgraph Ingest
+        D["Document"] --> C["Chunker<br/>250 words, 50 overlap"] --> E1["Ollama<br/>nomic-embed-text"] --> I[("Index<br/>brute / KD-Tree / HNSW")]
+    end
+    subgraph Ask
+        Q["Question"] --> E2["Embed"] --> S["Nearest chunks"] --> F{"distance <= 0.4?"}
+        F -- yes --> G["Ollama llama3.2<br/>answer from context"] --> A["Answer + sources"]
+        F -- no --> N["Couldn't find anything relevant"]
+    end
+    I -.-> S
 ```
 
-### Technology Stack
+1. **Chunking.** Text is split into ~250-word chunks that overlap by 50 words, so sentences cut at a boundary keep their context.
+2. **Embedding.** Each chunk becomes a 768-dimensional vector using `nomic-embed-text` through Ollama.
+3. **Indexing.** Vectors go into the active index. All three indexes share one interface (`insert`, `delete`, `search`), so they are interchangeable.
+4. **Retrieval.** A question is embedded the same way, and the nearest chunks by **cosine distance** are fetched (top 3 by default).
+5. **Relevance cutoff.** Chunks with distance above 0.4 are dropped. If none remain, the app answers "I couldn't find anything relevant" and skips the LLM, which saves time and prevents answers from the model's general knowledge.
+6. **Generation.** The surviving chunks go into a prompt that tells `llama3.2` to answer only from the context. The answer is returned with its sources.
 
-| Layer                    | Technologies                |
-| ------------------------ | --------------------------- |
-| Frontend                 | React 19, Vite, JavaScript  |
-| Backend                  | Python, FastAPI, Pydantic   |
-| Vector Operations        | NumPy                       |
-| Embedding Model          | Ollama – `nomic-embed-text` |
-| Generation Model         | Ollama – `llama3.2`         |
-| Similarity Search        | Brute Force, KD-Tree, HNSW  |
-| Dimensionality Reduction | PCA, NumPy SVD              |
-| API Communication        | REST APIs, Fetch            |
+### The three indexes
 
----
+| Index           | Exact?           | Idea                                                                                                     | Notes                                                                                                                                                               |
+| --------------- | ---------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Brute force** | Yes              | Compare the query to every vector                                                                        | Simple, and the ground truth used to measure recall                                                                                                                 |
+| **KD-Tree**     | Yes              | Split space on the highest-variance axis at the median; prune branches that can't contain a closer point | Rebuilt lazily on the first search after a change. Pruning stops working above ~10 dimensions (see findings below)                                                  |
+| **HNSW**        | No (approximate) | Layered proximity graph: sparse upper layers for long hops, dense bottom layer for the final search      | Defaults: `M=16`, `ef_construction=100`, `ef_search=50`, with heuristic neighbour selection. Supports insert and delete, with repair of neighbours' links on delete |
 
-## 📂 Project Structure
+For cosine distance the KD-Tree normalises vectors and searches by Euclidean distance (which ranks identically), and HNSW normalises on insert so a distance is just `1 - dot(a, b)`.
 
-```text
-TrainYourOwnAI/
-│
-├── ui/
-│   ├── public/
-│   └── src/
-│       ├── assets/
-│       ├── App.jsx
-│       ├── AskTab.jsx
-│       ├── DocumentsTab.jsx
-│       ├── SearchTab.jsx
-│       ├── MapTab.jsx
-│       ├── api.js
-│       ├── App.css
-│       └── index.css
-│
-├── vectordb-py/
-│   ├── tests/
-│   ├── api.py
-│   ├── chunker.py
-│   ├── distance.py
-│   ├── document_store.py
-│   ├── index_brute.py
-│   ├── index_factory.py
-│   ├── index_hnsw.py
-│   ├── index_kdtree.py
-│   ├── ollama_client.py
-│   └── projection.py
-│
-├── .gitignore
-└── README.md
-```
+## Requirements
 
----
+- **Python 3.10+**
+- **Node.js 20+** and npm
+- **[Ollama](https://ollama.com/download)** with two models:
+  ```bash
+  ollama pull nomic-embed-text
+  ollama pull llama3.2        # or llama3.2:1b for a faster, smaller model
+  ```
+  About 8 GB of RAM is comfortable for `llama3.2`. To use another generation model, change `gen_model` in `ollama_client.py`.
 
-## ⚙️ Getting Started
+## Quick start
 
-### Prerequisites
+Open two terminals from the project root.
 
-Make sure you have the following installed:
-
-- Python 3.10+
-- Node.js and npm
-- Ollama
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Soumyad2003/Train_Your_Own_AI.git
-cd TrainYourOwnAI
-```
-
-### 2. Set up Ollama
-
-Install Ollama from [ollama.com](https://ollama.com/).
-
-Pull the required models:
-
-```bash
-ollama pull nomic-embed-text
-ollama pull llama3.2
-```
-
-Start the Ollama service.
-
-The application expects Ollama to be accessible at:
-
-```text
-http://127.0.0.1:11434
-```
-
-### 3. Configure the Python backend
-
-```bash
-cd vectordb-py
-
-python -m venv .venv
-```
-
-Activate the virtual environment.
-
-**Windows PowerShell:**
+**1. Backend** (terminal 1)
 
 ```powershell
-.venv\Scripts\Activate.ps1
-```
-
-**Linux / macOS:**
-
-```bash
-source .venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
-pip install fastapi uvicorn requests numpy pydantic
-```
-
-Start the FastAPI server:
-
-```bash
+cd vectordb-py
+python -m venv .venv
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install requests numpy fastapi "uvicorn[standard]"
 uvicorn api:app --reload
 ```
 
-Backend API:
+The API is now at http://127.0.0.1:8000, with interactive docs at http://127.0.0.1:8000/docs.
 
-```text
-http://127.0.0.1:8000
+> If PowerShell blocks the activation script, run
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` first.
+
+**2. Sample data** (optional, in a third terminal inside `vectordb-py` with the venv active)
+
+```powershell
+python seed.py             # adds six sample documents (7 chunks) if missing
+python seed.py --reset     # deletes everything first, then loads them
 ```
 
-Interactive API documentation:
+**3. Frontend** (terminal 2)
 
-```text
-http://127.0.0.1:8000/docs
-```
-
-### 4. Configure the frontend
-
-Open another terminal:
-
-```bash
+```powershell
 cd ui
 npm install
 npm run dev
 ```
 
-Open the application:
+Open http://localhost:5173. The header shows a green dot when Ollama is reachable.
 
-```text
-http://localhost:5173
+## API reference
+
+All request and response bodies are JSON.
+
+| Method   | Path                  | Purpose                                                                                          |
+| -------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `GET`    | `/status`             | Ollama reachability, active index, document and chunk counts                                     |
+| `POST`   | `/documents`          | Add a document: `{"title", "text"}` returns `{"doc_id", "title", "chunks"}`                      |
+| `GET`    | `/documents`          | List documents with their chunk counts                                                           |
+| `DELETE` | `/documents/{doc_id}` | Delete a document and all its chunks                                                             |
+| `POST`   | `/search`             | `{"query", "k"}` returns matching chunks with `distance`                                         |
+| `POST`   | `/ask`                | `{"question", "k", "max_distance"}` returns `{"answer", "sources"}`                              |
+| `PUT`    | `/index`              | Switch index: `{"type": "brute" \| "kdtree" \| "hnsw"}`                                          |
+| `GET`    | `/map`                | 2D PCA coordinates for every chunk, plus variance explained                                      |
+| `POST`   | `/map/project`        | Project a query into the same 2D space: `{"query"}` returns `{"x", "y"}`                         |
+| `POST`   | `/benchmark`          | `{"n": 1000 \| 2000 \| 5000, "dim": 8 \| 64 \| 768, "ef"}` returns per-method timings and recall |
+
+Errors use standard codes: `400` for empty text, `404` for an unknown document, `422` for a malformed request and `503` when Ollama is unreachable.
+
+Example:
+
+```json
+POST /ask
+{ "question": "How long should I simmer the tea after adding milk?" }
+
+{
+  "answer": "About three minutes, until the tea turns a deep golden brown.",
+  "sources": [{ "title": "Masala Chai", "chunk": 0, "distance": 0.21 }]
+}
 ```
 
----
+## The benchmark
 
-## 🖥️ Application Walkthrough
+The Benchmark tab runs on **synthetic clustered vectors** (20 topics with noise around each, a rough stand-in for real embeddings), not your documents, because a handful of documents would give meaningless microsecond timings. For each method it reports:
 
-The application provides four interactive workspaces:
+- **Build time** to index all vectors
+- **Median query time** for a single query, measured on the index only (embedding time excluded)
+- **Distance calls**, the average number of vector comparisons per query. This is the implementation-independent measure of work.
+- **Recall@5**, the fraction of the true 5 nearest neighbours returned
 
-| Workspace | Functionality                                                                               |
-| --------- | ------------------------------------------------------------------------------------------- |
-| Documents | Upload, ingest, manage and delete documents.                                                |
-| Search    | Perform semantic searches and inspect retrieved chunks.                                     |
-| Ask AI    | Ask natural-language questions and receive context-grounded answers with source references. |
-| Map       | Explore document embeddings and query positions in a 2D PCA space.                          |
+It includes a **NumPy brute-force** row next to the plain Python-loop version. The loop version exaggerates how slow brute force is, and a vectorised matrix product is the fair baseline. At a few thousand vectors it is hard to beat, and HNSW's advantage appears at much larger scale, where its work grows roughly logarithmically with the number of vectors while brute force grows linearly. Indexes are cached per `(vectors, dimensions)` until the server restarts, so only the first run for a size is slow.
 
-### Using the Application
+## Findings from building it
 
-1. Start Ollama, the FastAPI backend, and the React frontend.
-2. Navigate to the Documents workspace.
-3. Add a document by uploading a `.txt` or `.md` file, or pasting its content.
-4. Wait for the document chunks to be embedded and indexed.
-5. Navigate to Search to retrieve semantically similar chunks.
-6. Switch to Ask AI to ask questions about your uploaded documents.
-7. Open Map to visualize the embedding space and inspect query relationships.
-8. Experiment with Brute Force, KD-Tree, and HNSW indexing from the index selector.
+Numbers from the test scripts in this repo (they vary with hardware and random seeds):
 
----
+**KD-Trees stop working in high dimensions.** Average distance computations per query over 5,000 random vectors (brute force always does 5,000):
 
-## 🔌 API Reference
+| Dimensions               | 2    | 4    | 8     | 16    | 64   | 768  |
+| ------------------------ | ---- | ---- | ----- | ----- | ---- | ---- |
+| Share of vectors checked | 0.6% | 2.2% | 36.6% | 99.9% | 100% | 100% |
 
-The backend exposes RESTful endpoints through FastAPI.
+At real embedding sizes the KD-Tree degenerates into brute force, which is the curse of dimensionality and the reason HNSW exists.
 
-| Method | Endpoint              | Description                                                      |
-| ------ | --------------------- | ---------------------------------------------------------------- |
-| GET    | `/status`             | Check Ollama connectivity, active index and database statistics. |
-| POST   | `/documents`          | Ingest and index a document.                                     |
-| GET    | `/documents`          | Retrieve stored document metadata.                               |
-| DELETE | `/documents/{doc_id}` | Delete a document and its associated vectors.                    |
-| POST   | `/search`             | Perform Top-K semantic similarity search.                        |
-| POST   | `/ask`                | Execute the RAG pipeline and generate an answer.                 |
-| PUT    | `/index`              | Switch between indexing strategies.                              |
-| GET    | `/map`                | Retrieve 2D PCA coordinates of document embeddings.              |
-| POST   | `/map/project`        | Project a query embedding into the existing PCA space.           |
+**Neighbour selection matters for deletes.** After deleting 20% of 2,000 clustered vectors, plain "closest M" neighbour selection left isolated nodes and recall@5 fell to 0.86, while the heuristic selection from the HNSW paper kept it at 1.00 with no isolated nodes. Heuristic selection is the default.
 
-Complete interactive API documentation is available at `/docs`.
+**The relevance cutoff is model-specific.** The 0.4 cosine-distance threshold was tuned to `nomic-embed-text`. Good matches in the sample data sit around 0.2 to 0.3 and unrelated chunks at 0.5 or more. Long chunks sit further from short questions, so a question about a detail in a long document can need a higher cutoff (`max_distance` in `/ask`, and `max_distance` in `ui/src/api.js`).
 
----
+## Project structure
 
-## 🧠 Engineering Concepts Explored
+```
+.
+├── README.md
+├── vectordb-py/                 # Python backend
+│   ├── api.py                   # FastAPI app and all endpoints
+│   ├── document_store.py        # chunks + embeddings + index; insert, search, ask (RAG)
+│   ├── ollama_client.py         # embed() and generate() over Ollama's HTTP API
+│   ├── chunker.py               # word-based chunking with overlap
+│   ├── distance.py              # cosine, Euclidean and Manhattan distances
+│   ├── index_brute.py           # brute-force index
+│   ├── index_kdtree.py          # KD-Tree index
+│   ├── index_hnsw.py            # HNSW index
+│   ├── index_factory.py         # builds an index by name
+│   ├── projection.py            # 2D PCA for the Map tab
+│   ├── benchmark.py             # synthetic benchmark behind /benchmark
+│   ├── seed.py                  # loads the sample documents through the API
+│   └── tests/                   # one test script per build step
+└── ui/                          # React + Vite frontend
+    └── src/
+        ├── App.jsx              # header, index selector, tabs
+        ├── api.js               # fetch wrapper for every endpoint
+        ├── DocumentsTab.jsx
+        ├── SearchTab.jsx
+        ├── AskTab.jsx
+        ├── MapTab.jsx
+        └── BenchmarkTab.jsx
+```
 
-This project was built to understand the underlying engineering concepts behind modern AI retrieval systems.
+## Tests
 
-Some of the key concepts explored include:
+Each build step has a plain Python script. Run them from `vectordb-py` as modules with the venv active, for example `python -m tests.test_3`.
 
-- **Vector Embeddings:** Representing unstructured text as dense numerical vectors.
-- **Nearest Neighbor Search:** Retrieving semantically similar vectors using distance metrics.
-- **Indexing & Search Optimization:** Exploring trade-offs between exhaustive search, spatial partitioning, and graph-based approximate search.
-- **RAG Architecture:** Combining retrieval systems with generative models to produce context-aware responses.
-- **Dimensionality Reduction:** Using PCA to visualize high-dimensional embedding spaces.
-- **Modular System Design:** Separating document ingestion, storage, indexing, embedding generation, and API orchestration.
-- **Concurrency Control:** Protecting shared in-memory database and index operations using synchronization.
+| Script                    | Checks                                                 | Needs                               |
+| ------------------------- | ------------------------------------------------------ | ----------------------------------- |
+| `test_1.py`               | Ollama connection, 768-dim embeddings, text generation | Ollama                              |
+| `test_2.py`               | Chunk sizes and overlap, edge cases                    | nothing                             |
+| `test_3.py`               | Distance metrics and brute-force search, delete        | nothing                             |
+| `test_4.py`               | Document store: insert, search, delete                 | Ollama                              |
+| `test_5.py`               | RAG `ask()` including the relevance cutoff             | Ollama                              |
+| `test_6.py`               | KD-Tree matches brute force; cost as dimensions grow   | Ollama (last part only)             |
+| `test_7.py`, `test_7b.py` | HNSW recall, deletion, simple vs heuristic selection   | Ollama (`test_7.py` last part only) |
+| `test_8.py`               | End-to-end API test through HTTP                       | API and Ollama running              |
 
----
+## Limitations
 
-## ⚠️ Current Limitations
+- **Data lives in memory.** Restarting the server, including an automatic `--reload` restart when you save a Python file, clears all documents. Run `python seed.py` to reload the samples, or start the server without `--reload` (`uvicorn api:app`) while you are not editing code.
+- **Pure Python.** The indexes favour clarity over speed. HNSW pays Python's per-step overhead, so expect a vectorised NumPy brute force to match or beat it at thousands of vectors.
+- **Cosine only.** The API fixes the metric at cosine. The index classes also support Euclidean and Manhattan.
+- **One request at a time.** A single lock protects the store, so a slow `/ask` (LLM generation, often 10 to 40 seconds on a CPU) blocks other document operations. Benchmarks use a separate lock.
+- **Simple chunking.** Chunks split on word count, not sentence boundaries.
+- **The map is approximate.** PCA squeezes 768 dimensions into 2, so points that look close may not be. Use the distances in the Search tab as the real numbers.
 
-- Documents and embeddings are stored in memory; data is not persisted across backend restarts.
-- Ollama must be running and accessible for embedding generation and LLM inference.
-- Document ingestion currently supports plain text and Markdown files.
-- The current implementation uses a single-process backend with serialized access to shared database operations.
-- HNSW provides approximate nearest-neighbor retrieval, so results may differ from exhaustive search.
-- The application is currently intended for local experimentation and learning, not production workloads.
+## Troubleshooting
 
----
+| Symptom                                                | Fix                                                                                                |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `ollama` is not recognised                             | Install Ollama, then open a **new** terminal so the PATH update is picked up                       |
+| Header says "Ollama offline"                           | Start the Ollama app, or run `ollama serve`. Check http://127.0.0.1:11434 says "Ollama is running" |
+| Model not found (404)                                  | Run `ollama pull nomic-embed-text` and `ollama pull llama3.2`                                      |
+| `Could not import module "api"`                        | Run `uvicorn` from inside `vectordb-py` (or add `--app-dir vectordb-py`)                           |
+| UI says "Can't reach the API" while uvicorn is running | Vite probably started on another port. Add that origin to `allow_origins` in `api.py`              |
+| Documents disappeared                                  | The server restarted (see Limitations). Run `python seed.py`                                       |
+| A relevant question gets "couldn't find anything"      | Raise `max_distance` (try 0.5) in `ui/src/api.js`                                                  |
 
-## 🚀 Future Improvements
+## Ideas for next steps
 
-- Persistent vector storage and database recovery.
-- PDF and DOCX document ingestion.
-- Metadata filtering and hybrid keyword-vector search.
-- Streaming LLM responses.
-- Benchmarking indexing strategies across different dataset sizes.
-- Configurable HNSW parameters and search quality evaluation.
-- Authentication, rate limiting, and production deployment support.
-- Distributed ingestion and parallel embedding generation.
-
----
-
-## 🎯 Motivation
-
-The goal of this project was to go beyond using existing vector database abstractions and understand how they work internally.
-
-By implementing multiple indexing strategies, building an end-to-end RAG pipeline, and visualizing high-dimensional embeddings, this project explores the intersection of **Data Structures & Algorithms, Backend Engineering, Information Retrieval, and Generative AI**.
-
-**Built from scratch. Powered locally. Designed to understand AI from the inside out.**
-
----
-
-⭐ If you find this project interesting, consider giving the repository a star!
+- Persist documents and embeddings to disk (for example SQLite) and rebuild the index on startup
+- Stream LLM answers token by token
+- Sentence-aware chunking and PDF upload
+- A benchmark mode on your own stored documents
+- Cross-encoder re-ranking of the retrieved chunks

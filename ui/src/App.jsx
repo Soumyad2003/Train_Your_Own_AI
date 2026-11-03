@@ -4,9 +4,10 @@ import DocumentsTab from "./DocumentsTab";
 import SearchTab from "./SearchTab";
 import AskTab from "./AskTab";
 import MapTab from "./MapTab";
+import BenchmarkTab from "./BenchmarkTab";
 import "./App.css";
 
-const TABS = ["Documents", "Search", "Ask AI", "Map"];
+const TABS = ["Documents", "Search", "Ask AI", "Map", "Benchmark"];
 
 export default function App() {
   const [tab, setTab] = useState("Documents");
@@ -101,6 +102,9 @@ export default function App() {
       </div>
       <div hidden={tab !== "Map"}>
         <MapTab version={version} highlight={highlight} />
+      </div>
+      <div hidden={tab !== "Benchmark"}>
+        <BenchmarkTab />
       </div>
     </div>
   );
