@@ -7,6 +7,11 @@
 Instead of relying on pre-built vector database frameworks, this project implements the core mechanics of vector storage, similarity search, indexing, and retrieval to explore how modern AI-powered search systems work under the hood.
 
 ---
+## Demo
+<img width="1886" height="902" alt="image" src="https://github.com/user-attachments/assets/bfa9bdc7-5bbb-4a2b-a677-a25d944e709f" />
+<img width="1907" height="897" alt="image" src="https://github.com/user-attachments/assets/1b02e4db-c949-43e8-9f77-a33ae6d40ba8" />
+<img width="1908" height="901" alt="image" src="https://github.com/user-attachments/assets/4f5b6f55-c90e-4a54-b069-726def698400" />
+<img width="1908" height="897" alt="image" src="https://github.com/user-attachments/assets/27bf96a3-b748-4a48-a616-a51add9ce9bb" />
 
 ## ✨ Features
 
